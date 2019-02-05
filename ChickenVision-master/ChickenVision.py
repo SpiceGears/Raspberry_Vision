@@ -768,7 +768,7 @@ if __name__ == "__main__":
             continue
         #Checks if you just want camera for driver (No processing), False by default
         if(networkTable.getBoolean("Driver", False)):
-            cap.autoExpose = True
+            cap.autoExpose = False
             processed = frame
         else:
             # Checks if you just want camera for Tape processing , False by default
