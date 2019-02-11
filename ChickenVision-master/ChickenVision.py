@@ -148,8 +148,8 @@ class WebcamVideoStream:
 #Angles in radians
 
 #image size ratioed to 16:9
-image_width = 256
-image_height = 144
+image_width = 320 #256
+image_height = 240 #144
 
 #Lifecam 3000 from datasheet
 #Datasheet: https://dl2jx7zfbtwvr.cloudfront.net/specsheets/WEBC1010.pdf
@@ -173,8 +173,8 @@ green_blur = 7
 orange_blur = 27
 
 # define range of green of retroreflective tape in HSV
-lower_green = np.array([0,50,105])
-upper_green = np.array([155, 255, 255])
+lower_green = np.array([0,112,133])
+upper_green = np.array([180, 255, 255])
 #define range of orange from cargo ball in HSV
 lower_orange = np.array([0,193,92])
 upper_orange = np.array([23, 255, 255])
@@ -325,6 +325,7 @@ def findBall(contours, image, centerX, centerY):
             closestCargo = min(biggestCargo, key=lambda x: (math.fabs(x[0] - centerX)))
             xCoord = closestCargo[0]
             finalTarget = calculateYaw(xCoord, centerX, H_FOCAL_LENGTH)
+            finalTarget = float(finalTarget)
             print("Yaw: " + str(finalTarget))
             # Puts the yaw on screen
             # Draws yaw of target + line where center of target is
@@ -474,6 +475,7 @@ def findTape(contours, image, centerX, centerY):
         #Sorts targets based on x coords to break any angle tie
         targets.sort(key=lambda x: math.fabs(x[0]))
         finalTarget = min(targets, key=lambda x: math.fabs(x[1]))
+        #finalTargetx = float(finalTarget[0])
         # Puts the yaw on screen
         #Draws yaw of target + line where center of target is
         cv2.putText(image, "Yaw: " + str(finalTarget[1]), (40, 40), cv2.FONT_HERSHEY_COMPLEX, .6,
@@ -486,10 +488,12 @@ def findTape(contours, image, centerX, centerY):
 
         box = cv2.minAreaRect(finalTarget[2])
         deltaY = box[0][0] - box[1][0]
-        networkTable.putNumber("boxX00", box[0][0])
-        networkTable.putNumber("boxX01", box[0][1])
+
         networkTable.putNumber("boxX10", box[1][0])
-        networkTable.putNumber("boxX11", box[1][1])
+        box2 = cv2.minAreaRect(finalTarget[3])
+        deltaY = box2[0][0] - box2[1][0]
+
+        networkTable.putNumber("box2X11", box2[1][1])
         # networkTable.putNumber("boxX20", box[2][0])
         # networkTable.putNumber("boxX21", box[2][1])
         # networkTable.putNumber("boxX30", box[3][0])
@@ -501,19 +505,28 @@ def findTape(contours, image, centerX, centerY):
         rx1, ry1, rw1, rh1 = cv2.boundingRect(finalTarget[2])
         rx2, ry2, rw2, rh2 = cv2.boundingRect(finalTarget[3])
 		#kat taki XD czyli jaki? perspektywistyczny
-        perspectiveAngle = rw2 - rw1
+        if(box2[1][1] > box[1][0]):
+            x = box[1][0]/box2[1][1]
+        else:
+            x = box2[1][1]/box[1][0]
+        
+        deltaX = (rx2+rx1)/2
+        deltaY = (ry2+ry1)/2
+
+        angle = 154.47991761071 - 154.47991761071*x
+        #angle = math.atan2(perspectiveAngle, centerX)
         #distance to target
 
-        x = box[1][0]
-        y = 0.070312 * (x * x) + (-9.5625 * x) + 402.593
-        networkTable.putNumber("wynik z funkcji XD", y)
+        y = 0.083508 * (x * x) + (-9.42 * x) + 361.56
+        networkTable.putNumber("Distance", y)
+        networkTable.putNumber("Perspective", angle)
+        #angle = (math.atan2(deltaH, centerX) / V_FOCAL_LENGTH) * 180
 		#deltaY = ry2 - ry1
-
 		# distanceXD = 0
         # if (deltaY != 0):
         #     distanceXD = ( 29.7 * 350 ) / abs(deltaY)
 
-        networkTable.putNumber("perspectiveAngle", perspectiveAngle)
+        #networkTable.putNumber("perspectiveAngle", perspectiveAngle)
         #networkTable.putNumber("distanceXD", deltaY)
 
     else:
@@ -565,7 +578,7 @@ def calculateDistance(heightOfCamera, heightOfTarget, pitch):
                        d
     '''
     distance = math.fabs(heightOfTargetFromCamera / math.tan(math.radians(pitch)))
-
+    networkTables.putNumber("ChickenDistance", distance)
     return distance
 
 
